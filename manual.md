@@ -1,29 +1,39 @@
 
 # Table of Contents
 
-1.  [Запуск](#orge28545d)
-2.  [Эндпоинты](#orgbb36bfe)
-    1.  [проверка что сервер работает](#orge4eeccf)
-    2.  [пользователи](#orgd3bf0a8)
-        1.  [создание пользователя](#orgc5b84ec)
-        2.  [получение юзера по id](#orgbb94097)
-        3.  [получение юзера по email](#org5cf3792)
-        4.  [проверка занят ли email](#org1b139d3)
-        5.  [смена пароля юзера](#orgc376587)
-        6.  [обновление юзера по id](#org4b69976)
-        7.  [удаление юзера по id](#orgb165a8e)
-        8.  [логин](#org5a286f2)
-    3.  [сайты](#org1208c58)
-        1.  [создание сайта](#orgcca5cb9)
-        2.  [получение сайта](#orgda4a75f)
-        3.  [обновление сайта](#org5005128)
-        4.  [активация сайта](#orgf1e812b)
-        5.  [блокировка сайта](#orgc34e821)
-        6.  [удаление сайта](#org6a78a27)
+1.  [Запуск](#org067f479)
+2.  [Эндпоинты](#orga968871)
+    1.  [проверка что сервер работает](#orga658a77)
+    2.  [пользователи](#org65f217a)
+        1.  [создание пользователя](#org8dc07bb)
+        2.  [получение юзера по id](#orgb6a04db)
+        3.  [получение юзера по email](#orge71de3c)
+        4.  [проверка занят ли email](#orgef5e1bc)
+        5.  [смена пароля юзера](#org2b84212)
+        6.  [обновление юзера по id](#orgdc235ad)
+        7.  [удаление юзера по id](#org0c2f8ff)
+        8.  [логин](#org3ddb80d)
+    3.  [сайты](#orgfab5ba6)
+        1.  [создание сайта](#orgbd7337e)
+        2.  [получение сайта](#org1a2510a)
+        3.  [обновление сайта](#org6112e40)
+        4.  [активация сайта](#orge22e976)
+        5.  [блокировка сайта](#org1be7810)
+        6.  [удаление сайта](#orgb7ba4c4)
+    4.  [сессии](#orgac51f51)
+        1.  [создать сессию](#org0819e03)
+        2.  [получение сессии](#orgffaf3ce)
+        3.  [обновление риск-скора](#org33314c5)
+        4.  [блокировка сессии](#org1c2e963)
+        5.  [разблокировка сессии](#org2e46124)
+        6.  [деактивация сессии (удаление)](#orgf7b0859)
+        7.  [активные сессии по сайту](#org6af6e4d)
+        8.  [подозрительные сессии (риск более 60)](#orgc44966c)
+        9.  [статистика по сайту](#orgee3941d)
 
 
 
-<a id="orge28545d"></a>
+<a id="org067f479"></a>
 
 # Запуск
 
@@ -45,12 +55,12 @@
     go run cmd/server/main.go
 
 
-<a id="orgbb36bfe"></a>
+<a id="orga968871"></a>
 
 # Эндпоинты
 
 
-<a id="orge4eeccf"></a>
+<a id="orga658a77"></a>
 
 ## проверка что сервер работает
 
@@ -59,12 +69,12 @@
     {"status":"ok"}
 
 
-<a id="orgd3bf0a8"></a>
+<a id="org65f217a"></a>
 
 ## пользователи
 
 
-<a id="orgc5b84ec"></a>
+<a id="org8dc07bb"></a>
 
 ### создание пользователя
 
@@ -91,7 +101,7 @@ POST api/users
     {"id":"30508444-9b8e-4e29-ba39-89a393d0bed2","email":"test@example.com","name":"Test User","avatar_url":null,"role":"user","oauth_provider":null,"created_at":"2026-04-22T19:04:52.442724101+03:00","updated_at":"2026-04-22T19:04:52.442724101+03:00","last_login":null}
 
 
-<a id="orgbb94097"></a>
+<a id="orgb6a04db"></a>
 
 ### получение юзера по id
 
@@ -102,7 +112,7 @@ GET api/users/{id}
     {"id":"30508444-9b8e-4e29-ba39-89a393d0bed2","email":"test@example.com","name":"Test User","avatar_url":null,"role":"user","oauth_provider":null,"created_at":"2026-04-22T19:04:52.442724Z","updated_at":"2026-04-22T19:04:52.442724Z","last_login":null}
 
 
-<a id="org5cf3792"></a>
+<a id="orge71de3c"></a>
 
 ### получение юзера по email
 
@@ -113,7 +123,7 @@ GET /api/users/email/{email}
     {"id":"aa43b9e7-5142-49bd-8e6c-c4e6745e91f7","email":"john@example.com","name":"John Doe","avatar_url":null,"role":"user","oauth_provider":null,"created_at":"2026-04-22T20:07:02.521019Z","updated_at":"2026-04-22T20:07:02.521019Z","last_login":null}
 
 
-<a id="org1b139d3"></a>
+<a id="orgef5e1bc"></a>
 
 ### проверка занят ли email
 
@@ -127,7 +137,7 @@ GET /api/users/exists?email=&#x2026;
     {"exists":false}
 
 
-<a id="orgc376587"></a>
+<a id="org2b84212"></a>
 
 ### смена пароля юзера
 
@@ -150,7 +160,7 @@ POST /api/users/{id}/password
     Invalid old password
 
 
-<a id="org4b69976"></a>
+<a id="orgdc235ad"></a>
 
 ### обновление юзера по id
 
@@ -175,7 +185,7 @@ PUT api/users/{id}
     {"id":"30508444-9b8e-4e29-ba39-89a393d0bed2","email":"test@example.com","name":"New Name","avatar_url":null,"role":"admin","oauth_provider":null,"created_at":"2026-04-22T19:04:52.442724Z","updated_at":"2026-04-22T19:28:34.916821321+03:00","last_login":null}
 
 
-<a id="orgb165a8e"></a>
+<a id="org0c2f8ff"></a>
 
 ### удаление юзера по id
 
@@ -188,7 +198,7 @@ DELETE api/users/{id}
     User not found
 
 
-<a id="org5a286f2"></a>
+<a id="org3ddb80d"></a>
 
 ### логин
 
@@ -212,12 +222,12 @@ POST /api/login
     {"id":"aa43b9e7-5142-49bd-8e6c-c4e6745e91f7","email":"john@example.com","name":"John Updated","avatar_url":null,"role":"admin","oauth_provider":null,"created_at":"2026-04-22T20:07:02.521019Z","updated_at":"2026-04-22T20:09:48.553076Z","last_login":null}
 
 
-<a id="org1208c58"></a>
+<a id="orgfab5ba6"></a>
 
 ## сайты
 
 
-<a id="orgcca5cb9"></a>
+<a id="orgbd7337e"></a>
 
 ### создание сайта
 
@@ -235,7 +245,7 @@ POST /api/sites
     {"id":"138fba32-f0a9-43ce-8a52-188cd721c2ef","user_id":"aa43b9e7-5142-49bd-8e6c-c4e6745e91f7","name":"My Blog","domain":"blog.example.com","origin_server":"https://origin-blog.example.com","status":"verifying","settings":null,"created_at":"2026-04-22T21:36:02.224274333+03:00","updated_at":"2026-04-22T21:36:02.224274333+03:00"}
 
 
-<a id="orgda4a75f"></a>
+<a id="org1a2510a"></a>
 
 ### получение сайта
 
@@ -246,7 +256,7 @@ GET /api/sites/{id}
     {"id":"138fba32-f0a9-43ce-8a52-188cd721c2ef","user_id":"aa43b9e7-5142-49bd-8e6c-c4e6745e91f7","name":"My Blog","domain":"blog.example.com","origin_server":"https://origin-blog.example.com","status":"verifying","settings":{"collector":{"enabled":false,"mouse_tracking":false,"click_tracking":false,"scroll_tracking":false,"keystroke_tracking":false,"fingerprint_enabled":false},"analyzer":{"enabled":false,"rate_limiting":false,"pattern_analysis":false,"headless_detection":false,"thresholds":{"low":0,"medium":0,"high":0}},"reaction":{"enabled":false,"low_risk_action":"","medium_risk_action":"","high_risk_action":"","block_duration":0,"captcha_provider":""}},"created_at":"2026-04-22T21:36:02.224274Z","updated_at":"2026-04-22T21:36:02.224274Z"}
 
 
-<a id="org5005128"></a>
+<a id="org6112e40"></a>
 
 ### обновление сайта
 
@@ -262,7 +272,7 @@ PUT /api/sites/{id}
     {"id":"138fba32-f0a9-43ce-8a52-188cd721c2ef","user_id":"aa43b9e7-5142-49bd-8e6c-c4e6745e91f7","name":"Updated Blog","domain":"blog.example.com","origin_server":"https://origin-blog.example.com","status":"active","settings":{"collector":{"enabled":false,"mouse_tracking":false,"click_tracking":false,"scroll_tracking":false,"keystroke_tracking":false,"fingerprint_enabled":false},"analyzer":{"enabled":false,"rate_limiting":false,"pattern_analysis":false,"headless_detection":false,"thresholds":{"low":0,"medium":0,"high":0}},"reaction":{"enabled":false,"low_risk_action":"","medium_risk_action":"","high_risk_action":"","block_duration":0,"captcha_provider":""}},"created_at":"2026-04-22T21:36:02.224274Z","updated_at":"2026-04-22T21:38:57.180079014+03:00"}
 
 
-<a id="orgf1e812b"></a>
+<a id="orge22e976"></a>
 
 ### активация сайта
 
@@ -272,7 +282,7 @@ POST /api/sites/{id}/activate
     [serr@lap]-> curl -X POST http://localhost:8080/api/sites/138fba32-f0a9-43ce-8a52-188cd721c2ef/activate
 
 
-<a id="orgc34e821"></a>
+<a id="org1be7810"></a>
 
 ### блокировка сайта
 
@@ -281,10 +291,101 @@ POST /api/sites/{id}/suspend
     curl -X POST http://localhost:8080/api/sites/138fba32-f0a9-43ce-8a52-188cd721c2ef/suspend
 
 
-<a id="org6a78a27"></a>
+<a id="orgb7ba4c4"></a>
 
 ### удаление сайта
 
 DELETE /api/sites/{id}
 
     curl -X DELETE http://localhost:8080/api/sites/138fba32-f0a9-43ce-8a52-188cd721c2ef
+
+
+<a id="orgac51f51"></a>
+
+## сессии
+
+
+<a id="org0819e03"></a>
+
+### создать сессию
+
+    ~/projects/HumanGuard/backend
+    [serr@lap]-> curl -X POST http://localhost:8080/api/sessions \
+      -H "Content-Type: application/json" \
+      -d '{
+        "site_id": "138fba32-f0a9-43ce-8a52-188cd721c2ef",
+        "ip": "192.168.1.100",
+        "user_agent": "Mozilla/5.0",
+        "device": "desktop",
+        "location": "Moscow"
+      }'
+    {"id":"a5f668cf-d902-4f5d-a3f6-fb167512eebf","site_id":"138fba32-f0a9-43ce-8a52-188cd721c2ef","ip":"192.168.1.100","user_agent":"Mozilla/5.0","device":"desktop","location":"Moscow","is_active":true,"risk_score":0,"is_blocked":false,"captcha_shown":false,"created_at":"2026-04-22T22:01:40.920397824+03:00","last_activity":"2026-04-22T22:01:40.920397824+03:00","expires_at":"2026-04-22T22:31:40.920397824+03:00"}
+
+
+<a id="orgffaf3ce"></a>
+
+### получение сессии
+
+    ~/projects/HumanGuard/backend
+    [serr@lap]-> curl http://localhost:8080/api/sessions/a5f668cf-d902-4f5d-a3f6-fb167512eebf
+    {"id":"a5f668cf-d902-4f5d-a3f6-fb167512eebf","site_id":"138fba32-f0a9-43ce-8a52-188cd721c2ef","ip":"192.168.1.100","user_agent":"Mozilla/5.0","device":"desktop","location":"Moscow","is_active":true,"risk_score":0,"is_blocked":false,"captcha_shown":false,"created_at":"2026-04-22T22:01:40.920398Z","last_activity":"2026-04-22T22:01:40.920398Z","expires_at":"2026-04-22T22:31:40.920398Z"}
+
+
+<a id="org33314c5"></a>
+
+### обновление риск-скора
+
+    ~/projects/HumanGuard/backend
+    [serr@lap]-> curl -X PATCH http://localhost:8080/api/sessions/a5f668cf-d902-4f5d-a3f6-fb167512eebf/risk \
+      -H "Content-Type: application/json" \
+      -d '{"risk_score": 75}'
+
+
+<a id="org1c2e963"></a>
+
+### блокировка сессии
+
+    ~/projects/HumanGuard/backend
+    [serr@lap]-> curl -X POST http://localhost:8080/api/sessions/a5f668cf-d902-4f5d-a3f6-fb167512eebf/block
+
+
+<a id="org2e46124"></a>
+
+### разблокировка сессии
+
+    ~/projects/HumanGuard/backend
+    [serr@lap]-> curl -X POST http://localhost:8080/api/sessions/a5f668cf-d902-4f5d-a3f6-fb167512eebf/unblock
+
+
+<a id="orgf7b0859"></a>
+
+### деактивация сессии (удаление)
+
+    curl -X DELETE http://localhost:8080/api/sessions/a5f668cf-d902-4f5d-a3f6-fb167512eebf
+
+
+<a id="org6af6e4d"></a>
+
+### активные сессии по сайту
+
+    ~/projects/HumanGuard/backend
+    [serr@lap]-> curl "http://localhost:8080/api/sites/138fba32-f0a9-43ce-8a52-188cd721c2ef/sessions?limit=10"
+    [{"id":"a5f668cf-d902-4f5d-a3f6-fb167512eebf","site_id":"138fba32-f0a9-43ce-8a52-188cd721c2ef","ip":"192.168.1.100","user_agent":"Mozilla/5.0","device":"desktop","location":"Moscow","is_active":true,"risk_score":75,"is_blocked":false,"captcha_shown":false,"created_at":"2026-04-22T22:01:40.920398Z","last_activity":"2026-04-22T22:01:40.920398Z","expires_at":"2026-04-22T22:33:37.691064Z"}]
+
+
+<a id="orgc44966c"></a>
+
+### подозрительные сессии (риск более 60)
+
+    ~/projects/HumanGuard/backend
+    [serr@lap]-> curl "http://localhost:8080/api/sites/138fba32-f0a9-43ce-8a52-188cd721c2ef/sessions/suspicious?min_risk=60"
+    [{"id":"a5f668cf-d902-4f5d-a3f6-fb167512eebf","site_id":"138fba32-f0a9-43ce-8a52-188cd721c2ef","ip":"192.168.1.100","user_agent":"Mozilla/5.0","device":"desktop","location":"Moscow","is_active":true,"risk_score":75,"is_blocked":false,"captcha_shown":false,"created_at":"2026-04-22T22:01:40.920398Z","last_activity":"2026-04-22T22:01:40.920398Z","expires_at":"2026-04-22T22:33:37.691064Z"}]
+
+
+<a id="orgee3941d"></a>
+
+### статистика по сайту
+
+    ~/projects/HumanGuard/backend
+    [serr@lap]-> curl http://localhost:8080/api/sites/138fba32-f0a9-43ce-8a52-188cd721c2ef/stats
+    {"total":1,"active":1,"blocked":0,"avg_risk":75,"unique_ips":1}

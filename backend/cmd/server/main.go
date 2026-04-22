@@ -77,6 +77,21 @@ func startHTTPServer(store storage.Storage) {
 		mux.HandleFunc("POST /api/sites/{id}/suspend", siteHandler.SuspendSite)
 	}
 
+	// Session endpoints
+	{
+		sessionHandler := handlers.NewSessionHandler(store)
+
+		mux.HandleFunc("POST /api/sessions", sessionHandler.CreateSession)
+		mux.HandleFunc("GET /api/sessions/{id}", sessionHandler.GetSession)
+		mux.HandleFunc("DELETE /api/sessions/{id}", sessionHandler.DeactivateSession)
+		mux.HandleFunc("POST /api/sessions/{id}/block", sessionHandler.BlockSession)
+		mux.HandleFunc("POST /api/sessions/{id}/unblock", sessionHandler.UnblockSession)
+		mux.HandleFunc("PATCH /api/sessions/{id}/risk", sessionHandler.UpdateRiskScore)
+		mux.HandleFunc("GET /api/sites/{id}/sessions", sessionHandler.GetSessionsBySite)
+		mux.HandleFunc("GET /api/sites/{id}/sessions/suspicious", sessionHandler.GetSuspiciousSessions)
+		mux.HandleFunc("GET /api/sites/{id}/stats", sessionHandler.GetSessionStats)
+	}
+
 	// create server
 	server := &http.Server{
 		Addr:         ":8080",
