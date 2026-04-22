@@ -228,3 +228,33 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
+
+// POST /api/users/{id}/avatar
+func (h *UserHandler) UpdateAvatar(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	var req struct {
+		AvatarURL string `json:"avatar_url"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.AvatarURL == "" {
+		http.Error(w, "avatar_url is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.storage.UpdateAvatar(r.Context(), id, req.AvatarURL); err != nil {
+		if errors.Is(err, storage.ErrUserNotFound) {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

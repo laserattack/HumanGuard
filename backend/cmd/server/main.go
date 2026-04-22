@@ -50,6 +50,9 @@ func startHTTPServer(store storage.Storage) {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	// TODO(20260422T222701): add logging middleware
+	// TODO(20260422T222807): add auth middleware
+
 	// User endpoints
 	{
 		userHandler := handlers.NewUserHandler(store)
@@ -61,6 +64,7 @@ func startHTTPServer(store storage.Storage) {
 		mux.HandleFunc("PUT /api/users/{id}", userHandler.UpdateUser)
 		mux.HandleFunc("DELETE /api/users/{id}", userHandler.DeleteUser)
 		mux.HandleFunc("POST /api/users/{id}/password", userHandler.ChangePassword)
+		mux.HandleFunc("POST /api/users/{id}/avatar", userHandler.UpdateAvatar)
 		mux.HandleFunc("POST /api/login", userHandler.Login)
 	}
 
