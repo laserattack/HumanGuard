@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"golang.org/x/crypto/bcrypt"
 	"humanguard/storage"
 	"net/http"
 )
@@ -17,7 +18,6 @@ func NewUserHandler(store storage.Storage) *UserHandler {
 
 // GET /api/users/{id}
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
-	// Получить ID из URL
 	id := r.PathValue("id")
 
 	user, err := h.storage.GetUserByID(r.Context(), id)
@@ -35,7 +35,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email        string `json:"email"`
 		Name         string `json:"name"`
-		PasswordHash string `json:"password_hash"`
+		PasswordHash string `json:"password"`
 		Role         string `json:"role"`
 	}
 
@@ -44,10 +44,16 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.PasswordHash), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
+		return
+	}
+
 	user := &storage.User{
 		Email:        req.Email,
 		Name:         req.Name,
-		PasswordHash: req.PasswordHash,
+		PasswordHash: string(hashedPassword),
 		Role:         req.Role,
 	}
 
@@ -111,4 +117,80 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GET /api/users/email/{email}
+func (h *UserHandler) GetUserByEmail(w http.ResponseWriter, r *http.Request) {
+	email := r.PathValue("email")
+
+	user, err := h.storage.GetUserByEmail(r.Context(), email)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+
+// POST /api/users/{id}/password
+func (h *UserHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	var req struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.OldPassword == "" || req.NewPassword == "" {
+		http.Error(w, "Old password and new password are required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.storage.GetUserByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.OldPassword)); err != nil {
+		http.Error(w, "Invalid old password", http.StatusUnauthorized)
+		return
+	}
+
+	hashedNewPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Failed to hash new password", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.storage.UpdatePassword(r.Context(), id, string(hashedNewPassword)); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GET /api/users/exists?email=...
+func (h *UserHandler) CheckEmailExists(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		http.Error(w, "Email parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	exists, err := h.storage.CheckEmailExists(r.Context(), email)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"exists": exists})
 }
