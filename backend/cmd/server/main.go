@@ -42,24 +42,40 @@ func connectToDatabase() storage.Storage {
 }
 
 func startHTTPServer(store storage.Storage) {
-	userHandler := handlers.NewUserHandler(store)
 	mux := http.NewServeMux()
 
-	// Health check
+	// Health check endpoint
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	// User endpoints
-	mux.HandleFunc("GET /api/users/{id}", userHandler.GetUser)
-	mux.HandleFunc("GET /api/users/email/{email}", userHandler.GetUserByEmail)
-	mux.HandleFunc("GET /api/users/exists", userHandler.CheckEmailExists)
-	mux.HandleFunc("POST /api/users", userHandler.CreateUser)
-	mux.HandleFunc("PUT /api/users/{id}", userHandler.UpdateUser)
-	mux.HandleFunc("DELETE /api/users/{id}", userHandler.DeleteUser)
-	mux.HandleFunc("POST /api/users/{id}/password", userHandler.ChangePassword)
-	mux.HandleFunc("POST /api/login", userHandler.Login)
+	{
+		userHandler := handlers.NewUserHandler(store)
+
+		mux.HandleFunc("GET /api/users/{id}", userHandler.GetUser)
+		mux.HandleFunc("GET /api/users/email/{email}", userHandler.GetUserByEmail)
+		mux.HandleFunc("GET /api/users/exists", userHandler.CheckEmailExists)
+		mux.HandleFunc("POST /api/users", userHandler.CreateUser)
+		mux.HandleFunc("PUT /api/users/{id}", userHandler.UpdateUser)
+		mux.HandleFunc("DELETE /api/users/{id}", userHandler.DeleteUser)
+		mux.HandleFunc("POST /api/users/{id}/password", userHandler.ChangePassword)
+		mux.HandleFunc("POST /api/login", userHandler.Login)
+	}
+
+	// Site endpoints
+	{
+		siteHandler := handlers.NewSiteHandler(store)
+
+		mux.HandleFunc("POST /api/sites", siteHandler.CreateSite)
+		mux.HandleFunc("GET /api/sites", siteHandler.ListSites)
+		mux.HandleFunc("GET /api/sites/{id}", siteHandler.GetSite)
+		mux.HandleFunc("PUT /api/sites/{id}", siteHandler.UpdateSite)
+		mux.HandleFunc("DELETE /api/sites/{id}", siteHandler.DeleteSite)
+		mux.HandleFunc("POST /api/sites/{id}/activate", siteHandler.ActivateSite)
+		mux.HandleFunc("POST /api/sites/{id}/suspend", siteHandler.SuspendSite)
+	}
 
 	// create server
 	server := &http.Server{
