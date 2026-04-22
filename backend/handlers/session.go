@@ -215,3 +215,88 @@ func (h *SessionHandler) GetSessionStats(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
 }
+
+// GET /api/sessions/cookie/{cookie}
+func (h *SessionHandler) GetSessionByCookie(w http.ResponseWriter, r *http.Request) {
+	cookie := r.PathValue("cookie")
+
+	session, err := h.storage.GetSessionByCookie(r.Context(), cookie)
+	if err != nil {
+		if errors.Is(err, storage.ErrSessionNotFound) {
+			http.Error(w, "Session not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(session)
+}
+
+// PUT /api/sessions/{id}
+func (h *SessionHandler) UpdateSession(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	var req storage.Session
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	req.ID = id
+	if err := h.storage.UpdateSession(r.Context(), &req); err != nil {
+		if errors.Is(err, storage.ErrSessionNotFound) {
+			http.Error(w, "Session not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// POST /api/sessions/{id}/activity
+func (h *SessionHandler) UpdateSessionActivity(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	if err := h.storage.UpdateSessionActivity(r.Context(), id); err != nil {
+		if errors.Is(err, storage.ErrSessionNotFound) {
+			http.Error(w, "Session not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// POST /api/sessions/{id}/captcha
+func (h *SessionHandler) MarkCaptchaShown(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	if err := h.storage.MarkCaptchaShown(r.Context(), id); err != nil {
+		if errors.Is(err, storage.ErrSessionNotFound) {
+			http.Error(w, "Session not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// POST /api/sessions/cleanup
+func (h *SessionHandler) CleanupExpiredSessions(w http.ResponseWriter, r *http.Request) {
+	count, err := h.storage.CleanupExpiredSessions(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int64{"deleted": count})
+}
