@@ -23,14 +23,13 @@ func (s *storage) CreateUser(ctx context.Context, user *User) error {
 
 	query := `
 		INSERT INTO users (
-			id, email, name, avatar_url, role, 
-			totp_secret, password_hash, oauth_provider, oauth_id, 
+			id, email, name, avatar_url, role,
+			totp_secret, password_hash, oauth_provider, oauth_id,
 			created_at, updated_at, last_login
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9,
-			$10, $11,
-			$12, $13, $14
+			$10, $11, $12
 		)
 	`
 
@@ -61,12 +60,12 @@ func (s *storage) CreateUser(ctx context.Context, user *User) error {
 
 func (s *storage) GetUserByID(ctx context.Context, id string) (*User, error) {
 	query := `
-		SELECT 
+		SELECT
 			id, email, name, avatar_url, role,
 			totp_secret, password_hash,
 			oauth_provider, oauth_id,
 			created_at, updated_at, last_login
-		FROM users 
+		FROM users
 		WHERE id = $1
 	`
 
@@ -99,12 +98,12 @@ func (s *storage) GetUserByID(ctx context.Context, id string) (*User, error) {
 
 func (s *storage) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
-		SELECT 
+		SELECT
 			id, email, name, avatar_url, role,
 			totp_secret, password_hash,
 			oauth_provider, oauth_id,
 			created_at, updated_at, last_login
-		FROM users 
+		FROM users
 		WHERE email = $1
 	`
 
@@ -137,12 +136,12 @@ func (s *storage) GetUserByEmail(ctx context.Context, email string) (*User, erro
 
 func (s *storage) GetUserByOAuth(ctx context.Context, provider, oauthID string) (*User, error) {
 	query := `
-		SELECT 
+		SELECT
 			id, email, name, avatar_url, role,
 			totp_secret, password_hash,
 			oauth_provider, oauth_id,
 			created_at, updated_at, last_login
-		FROM users 
+		FROM users
 		WHERE oauth_provider = $1 AND oauth_id = $2
 	`
 
@@ -177,8 +176,8 @@ func (s *storage) UpdateUser(ctx context.Context, user *User) error {
 	user.UpdatedAt = time.Now()
 
 	query := `
-		UPDATE users 
-		SET 
+		UPDATE users
+		SET
 			name = $1,
 			role = $2,
 			updated_at = $3,
@@ -208,8 +207,8 @@ func (s *storage) UpdateUser(ctx context.Context, user *User) error {
 
 func (s *storage) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
 	query := `
-		UPDATE users 
-		SET 
+		UPDATE users
+		SET
 			password_hash = $1,
 			updated_at = $2
 		WHERE id = $3
@@ -230,8 +229,8 @@ func (s *storage) UpdatePassword(ctx context.Context, userID, passwordHash strin
 
 func (s *storage) UpdateAvatar(ctx context.Context, userID, avatarURL string) error {
 	query := `
-		UPDATE users 
-		SET 
+		UPDATE users
+		SET
 			avatar_url = $1,
 			updated_at = $2
 		WHERE id = $3
@@ -277,8 +276,8 @@ func (s *storage) DeleteUser(ctx context.Context, id string) error {
 func (s *storage) UpdateLastLogin(ctx context.Context, userID string) error {
 	now := time.Now()
 	query := `
-		UPDATE users 
-		SET 
+		UPDATE users
+		SET
 			last_login = $1,
 			updated_at = $1
 		WHERE id = $2
@@ -294,4 +293,3 @@ func (s *storage) CheckEmailExists(ctx context.Context, email string) (bool, err
 	err := s.db.QueryRowContext(ctx, query, strings.ToLower(email)).Scan(&exists)
 	return exists, err
 }
-

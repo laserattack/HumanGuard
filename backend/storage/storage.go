@@ -2,61 +2,61 @@ package storage
 
 import (
 	"context"
-	"time"
-	"crypto/rand"      
+	"crypto/rand"
 	"encoding/hex"
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"time"
 )
 
 type Storage interface {
 	UserStorage
 	SessionStorage
-//	FileStorage
-//	ShareStorage
+	//	FileStorage
+	//	ShareStorage
 	SiteStorage
 	SettingsStorage
-//	AnalyticsStorage
-	
+	//	AnalyticsStorage
+
 	Close() error
 	Ping() error
 }
 
 type Config struct {
-    DBURL      string  
-    UploadDir  string  
-    MaxFileSize int64  
+	DBURL       string
+	UploadDir   string
+	MaxFileSize int64
 }
 
 type User struct {
-	ID              string     `json:"id"`
-	Email           string     `json:"email"`
-	Name            string     `json:"name"`
-	AvatarURL       *string    `json:"avatar_url"`
-	Role            string     `json:"role"` 
-	TOTPSecret      *string    `json:"-"`
-	PasswordHash    string     `json:"-"`
-	OAuthProvider   *string    `json:"oauth_provider"` 
-	OAuthID         *string    `json:"-"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	LastLogin       *time.Time `json:"last_login"`
+	ID            string     `json:"id"`
+	Email         string     `json:"email"`
+	Name          string     `json:"name"`
+	AvatarURL     *string    `json:"avatar_url"`
+	Role          string     `json:"role"`
+	TOTPSecret    *string    `json:"-"`
+	PasswordHash  string     `json:"-"`
+	OAuthProvider *string    `json:"oauth_provider"`
+	OAuthID       *string    `json:"-"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	LastLogin     *time.Time `json:"last_login"`
 }
 
 type Session struct {
-	ID           string     `json:"id"`
-	SiteID       *string    `json:"site_id"`
-	IP           string     `json:"ip"`
-	UserAgent    string     `json:"user_agent"`
-	Device       string     `json:"device"`
-	Location     string     `json:"location"`
-	IsActive     bool       `json:"is_active"`
-	RiskScore    int        `json:"risk_score"`
-	IsBlocked    bool       `json:"is_blocked"`
-	CaptchaShown bool       `json:"captcha_shown"`
-	CreatedAt    time.Time  `json:"created_at"`
-	LastActivity time.Time  `json:"last_activity"`
-	ExpiresAt    time.Time  `json:"expires_at"`
+	ID           string    `json:"id"`
+	SiteID       *string   `json:"site_id"`
+	IP           string    `json:"ip"`
+	UserAgent    string    `json:"user_agent"`
+	Device       string    `json:"device"`
+	Location     string    `json:"location"`
+	IsActive     bool      `json:"is_active"`
+	RiskScore    int       `json:"risk_score"`
+	IsBlocked    bool      `json:"is_blocked"`
+	CaptchaShown bool      `json:"captcha_shown"`
+	CreatedAt    time.Time `json:"created_at"`
+	LastActivity time.Time `json:"last_activity"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }
 
 type ModuleSettings struct {
@@ -83,9 +83,9 @@ type AnalyzerSettings struct {
 }
 
 type AnalyzerThreshold struct {
-	Low    int `json:"low"`   
-	Medium int `json:"medium"` 
-	High   int `json:"high"`   
+	Low    int `json:"low"`
+	Medium int `json:"medium"`
+	High   int `json:"high"`
 }
 
 type ReactionSettings struct {
@@ -98,15 +98,15 @@ type ReactionSettings struct {
 }
 
 type Site struct {
-	ID               string          `json:"id"`
-	UserID           string          `json:"user_id"`
-	Name             string          `json:"name"`
-	Domain           string          `json:"domain"`
-	OriginServer     string          `json:"origin_server"`
-	Status           string          `json:"status"` 
-	Settings         *ModuleSettings `json:"settings"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
+	ID           string          `json:"id"`
+	UserID       string          `json:"user_id"`
+	Name         string          `json:"name"`
+	Domain       string          `json:"domain"`
+	OriginServer string          `json:"origin_server"`
+	Status       string          `json:"status"`
+	Settings     *ModuleSettings `json:"settings"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
 type UserStorage interface {
@@ -151,12 +151,10 @@ type SiteStorage interface {
 	SuspendSite(ctx context.Context, siteID string) error
 }
 
-
 type SettingsStorage interface {
 	GetSiteSettings(ctx context.Context, siteID string) (*ModuleSettings, error)
 	UpdateSiteSettings(ctx context.Context, siteID string, settings *ModuleSettings) error
 }
-
 
 func generateID() string {
 	return uuid.New().String()
@@ -170,7 +168,7 @@ func generateToken() string {
 
 func isUniqueViolation(err error) bool {
 	if pqErr, ok := err.(*pq.Error); ok {
-		return pqErr.Code == "23505" 
+		return pqErr.Code == "23505"
 	}
 	return false
 }
