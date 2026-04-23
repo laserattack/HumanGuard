@@ -1,3 +1,5 @@
+export type ApiResponse<T> = { data: T };
+
 export type Site = {
   id: string;
   domain: string;
@@ -13,6 +15,5 @@ export type Session = {
 export type User = {
   id: string;
   email: string;
-  name?: string;
   role: 'user' | 'admin';
 };

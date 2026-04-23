@@ -1,4 +1,4 @@
 import { api } from '@/api/client';
-import { Site } from '@/api/types';
+import { ApiResponse, Site } from '@/api/types';
 
-export const getSites = () => api.get<Site[]>('/sites').then(({ data }) => data);
+export const getSites = () => api.get<ApiResponse<Site[]>>('/sites').then(({ data }) => data.data);
