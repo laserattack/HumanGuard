@@ -13,6 +13,7 @@ func (s *storage) CreateUser(ctx context.Context, user *User) error {
 	if user.ID == "" {
 		user.ID = generateID()
 	}
+
 	now := time.Now()
 	user.CreatedAt = now
 	user.UpdatedAt = now
@@ -24,12 +25,12 @@ func (s *storage) CreateUser(ctx context.Context, user *User) error {
 	query := `
 		INSERT INTO users (
 			id, email, name, avatar_url, role,
-			totp_secret, password_hash, oauth_provider, oauth_id,
+			password_hash, is_verified, totp_secret, oauth_provider, oauth_id,
 			created_at, updated_at, last_login
 		) VALUES (
 			$1, $2, $3, $4, $5,
-			$6, $7, $8, $9,
-			$10, $11, $12
+			$6, $7, $8, $9, $10,
+			$11, $12, $13
 		)
 	`
 
@@ -39,8 +40,9 @@ func (s *storage) CreateUser(ctx context.Context, user *User) error {
 		user.Name,
 		user.AvatarURL,
 		user.Role,
-		user.TOTPSecret,
 		user.PasswordHash,
+		user.IsVerified,
+		user.TOTPSecret,
 		user.OAuthProvider,
 		user.OAuthID,
 		user.CreatedAt,

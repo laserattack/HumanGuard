@@ -116,6 +116,16 @@ func startHTTPServer(store storage.Storage) *http.Server {
 		mux.Handle("GET /api/sites/{id}/stats", authMiddleware(http.HandlerFunc(sessionHandler.GetSessionStats)))
 	}
 
+	fs := storage.NewLocalS3("./data/uploads")
+	fileHandler := handlers.NewFileHandler(store, fs)
+
+	mux.Handle("POST /api/files/upload", authMiddleware(http.HandlerFunc(fileHandler.Upload)))
+	mux.Handle("GET /api/files/{id}", authMiddleware(http.HandlerFunc(fileHandler.Download)))
+	mux.Handle("DELETE /api/files/{id}", authMiddleware(http.HandlerFunc(fileHandler.Delete)))
+	mux.Handle("GET /api/files", authMiddleware(http.HandlerFunc(fileHandler.List)))
+	mux.Handle("POST /api/files/share", authMiddleware(http.HandlerFunc(fileHandler.CreateShare)))
+	mux.HandleFunc("GET /api/files/share/{token}", fileHandler.GetByShareToken)
+
 	handler := loggingMiddleware(corsMiddleware(mux))
 
 	server := &http.Server{
