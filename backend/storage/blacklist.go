@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-
 func (s *storage) AddToBlacklist(ctx context.Context, entry *BlacklistEntry) error {
 	if entry.ID == "" {
 		entry.ID = generateID()
@@ -19,7 +18,7 @@ func (s *storage) AddToBlacklist(ctx context.Context, entry *BlacklistEntry) err
 	query := `
 		INSERT INTO blacklist (id, site_id, ip, reason, created_at, expires_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (site_id, ip) 
+		ON CONFLICT (site_id, ip)
 		DO UPDATE SET reason = EXCLUDED.reason, expires_at = EXCLUDED.expires_at
 	`
 
@@ -53,8 +52,8 @@ func (s *storage) RemoveFromBlacklist(ctx context.Context, siteID, ip string) er
 func (s *storage) IsBlacklisted(ctx context.Context, siteID, ip string) (bool, error) {
 	query := `
 		SELECT EXISTS(
-			SELECT 1 FROM blacklist 
-			WHERE site_id = $1 AND ip = $2 
+			SELECT 1 FROM blacklist
+			WHERE site_id = $1 AND ip = $2
 			AND (expires_at IS NULL OR expires_at > NOW())
 		)
 	`
@@ -71,8 +70,8 @@ func (s *storage) IsBlacklisted(ctx context.Context, siteID, ip string) (bool, e
 func (s *storage) ListBlacklist(ctx context.Context, siteID string) ([]*BlacklistEntry, error) {
 	query := `
 		SELECT id, site_id, ip, reason, created_at, expires_at
-		FROM blacklist 
-		WHERE site_id = $1 
+		FROM blacklist
+		WHERE site_id = $1
 		AND (expires_at IS NULL OR expires_at > NOW())
 		ORDER BY created_at DESC
 	`
@@ -100,4 +99,3 @@ func (s *storage) ListBlacklist(ctx context.Context, siteID string) ([]*Blacklis
 
 	return entries, nil
 }
-
