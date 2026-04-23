@@ -3,9 +3,10 @@ package auth
 import (
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
+	"crypto/sha1"
 	"encoding/base32"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -59,23 +60,36 @@ func (t *TOTPService) GenerateSecret() string {
 }
 
 func (t *TOTPService) GenerateCode(secret string) string {
-	key, _ := base32.StdEncoding.DecodeString(secret)
+	secret = strings.ToUpper(strings.TrimSpace(secret))
+	key, err := base32.StdEncoding.DecodeString(secret)
+	if err != nil {
+		return ""
+	}
+
 	counter := time.Now().Unix() / 30
 	msg := make([]byte, 8)
 	for i := 7; i >= 0; i-- {
 		msg[i] = byte(counter)
 		counter >>= 8
 	}
-	h := hmac.New(sha256.New, key)
+
+	h := hmac.New(sha1.New, key)
 	h.Write(msg)
 	hash := h.Sum(nil)
+
 	offset := hash[len(hash)-1] & 0x0f
-	binary := (int(hash[offset])&0x7f)<<24 | (int(hash[offset+1])&0xff)<<16 | (int(hash[offset+2])&0xff)<<8 | (int(hash[offset+3]) & 0xff)
+	binary := (int(hash[offset])&0x7f)<<24 |
+		(int(hash[offset+1])&0xff)<<16 |
+		(int(hash[offset+2])&0xff)<<8 |
+		(int(hash[offset+3]) & 0xff)
+
 	return fmt.Sprintf("%06d", binary%1000000)
 }
 
 func (t *TOTPService) ValidateCode(secret, code string) bool {
-	return t.GenerateCode(secret) == code
+	serverCode := t.GenerateCode(secret)
+	fmt.Printf("DEBUG: Server generated code: %s, Client provided: %s\n", serverCode, code)
+	return serverCode == code
 }
 
 func (t *TOTPService) GenerateQRURL(email, secret string) string {
