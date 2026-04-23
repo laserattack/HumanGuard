@@ -12,11 +12,11 @@ import (
 type Storage interface {
 	UserStorage
 	SessionStorage
-	//	FileStorage
-	//	ShareStorage
+	FileStorage
+	ShareStorage
 	SiteStorage
 	SettingsStorage
-	BlacklistStorage 
+	BlacklistStorage
 	AccessLogStorage
 
 	Close() error
@@ -37,13 +37,13 @@ type User struct {
 	Role          string     `json:"role"`
 	TOTPSecret    *string    `json:"-"`
 	PasswordHash  string     `json:"-"`
+	IsVerified    bool       `json:"is_verified"`
 	OAuthProvider *string    `json:"oauth_provider"`
 	OAuthID       *string    `json:"-"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 	LastLogin     *time.Time `json:"last_login"`
 }
-
 type Session struct {
 	ID           string    `json:"id"`
 	SiteID       *string   `json:"site_id"`
@@ -143,6 +143,38 @@ type LogStats struct {
 	AvgRiskScore    float64 `json:"avg_risk_score"`
 }
 
+type FileRecord struct {
+	ID           string    `json:"id"`
+	UserID       string    `json:"user_id"`
+	Name         string    `json:"name"`
+	OriginalName string    `json:"original_name"`
+	Size         int64     `json:"size"`
+	MimeType     string    `json:"mime_type"`
+	Hash         string    `json:"hash"`
+	Path         string    `json:"path"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type ShareRecord struct {
+	ID        string    `json:"id"`
+	FileID    string    `json:"file_id"`
+	Token     string    `json:"token"`
+	SharedBy  string    `json:"shared_by"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type FileStorage interface {
+	CreateFile(ctx context.Context, file *FileRecord) error
+	GetFile(ctx context.Context, id string) (*FileRecord, error)
+	DeleteFile(ctx context.Context, id string) error
+	ListUserFiles(ctx context.Context, userID string) ([]*FileRecord, error)
+}
+
+type ShareStorage interface {
+	CreateShare(ctx context.Context, share *ShareRecord) (string, error)
+	GetFileByShareToken(ctx context.Context, token string) (*FileRecord, error)
+}
 type AccessLogStorage interface {
 	LogAccess(ctx context.Context, log *AccessLog) error
 	GetAccessLogs(ctx context.Context, siteID string) ([]*AccessLog, error)
@@ -165,6 +197,7 @@ type UserStorage interface {
 	GetUserByID(ctx context.Context, id string) (*User, error)
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	GetUserByOAuth(ctx context.Context, provider, oauthID string) (*User, error)
+	GetOrCreateUserByOAuth(ctx context.Context, provider, oauthID, email, name string) (*User, error)
 	UpdateLastLogin(ctx context.Context, userID string) error
 	UpdatePassword(ctx context.Context, userID, passwordHash string) error
 	UpdateAvatar(ctx context.Context, userID, avatarURL string) error

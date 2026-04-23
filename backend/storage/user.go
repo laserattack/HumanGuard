@@ -13,6 +13,7 @@ func (s *storage) CreateUser(ctx context.Context, user *User) error {
 	if user.ID == "" {
 		user.ID = generateID()
 	}
+
 	now := time.Now()
 	user.CreatedAt = now
 	user.UpdatedAt = now
@@ -24,12 +25,12 @@ func (s *storage) CreateUser(ctx context.Context, user *User) error {
 	query := `
 		INSERT INTO users (
 			id, email, name, avatar_url, role,
-			totp_secret, password_hash, oauth_provider, oauth_id,
+			password_hash, is_verified, totp_secret, oauth_provider, oauth_id,
 			created_at, updated_at, last_login
 		) VALUES (
 			$1, $2, $3, $4, $5,
-			$6, $7, $8, $9,
-			$10, $11, $12
+			$6, $7, $8, $9, $10,
+			$11, $12, $13
 		)
 	`
 
@@ -39,8 +40,9 @@ func (s *storage) CreateUser(ctx context.Context, user *User) error {
 		user.Name,
 		user.AvatarURL,
 		user.Role,
-		user.TOTPSecret,
 		user.PasswordHash,
+		user.IsVerified,
+		user.TOTPSecret,
 		user.OAuthProvider,
 		user.OAuthID,
 		user.CreatedAt,
@@ -216,6 +218,27 @@ func (s *storage) GetUserByOAuth(ctx context.Context, provider, oauthID string) 
 	}
 
 	return &user, nil
+}
+
+func (s *storage) GetOrCreateUserByOAuth(ctx context.Context, provider, oauthID, email, name string) (*User, error) {
+	user, err := s.GetUserByOAuth(ctx, provider, oauthID)
+	if err == nil {
+		return user, nil
+	}
+
+	newUser := &User{
+		Email:         email,
+		Name:          name,
+		Role:          "user",
+		OAuthProvider: &provider,
+		OAuthID:       &oauthID,
+	}
+
+	if err := s.CreateUser(ctx, newUser); err != nil {
+		return nil, err
+	}
+
+	return newUser, nil
 }
 
 func (s *storage) UpdateUser(ctx context.Context, user *User) error {

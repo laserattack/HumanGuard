@@ -58,16 +58,26 @@ func startHTTPServer(store storage.Storage) *http.Server {
 	jwtService := auth.NewJWTService(getEnv("JWT_SECRET", "super-secret-key"))
 	totpService := auth.NewTOTPService()
 
+	oauthService := auth.NewOAuthService(
+		"humanguard",
+		// TODO: GET IT FROM ENV!!!!!
+		"1meWH6qPeEhd17APBADgo20Mth1J5pzP", // client secret from keycloak
+		"http://localhost:8080/api/auth/keycloak/callback",
+		"http://localhost:8081",
+	)
+
 	// Middleware
 	authMiddleware := auth.AuthMiddleware(jwtService)
 
 	// User endpoints
 	{
-		userHandler := handlers.NewUserHandler(store, jwtService, totpService)
+		userHandler := handlers.NewUserHandler(store, jwtService, totpService, oauthService)
 
 		// Public
 		mux.HandleFunc("POST /api/users", userHandler.CreateUser)
 		mux.HandleFunc("POST /api/login", userHandler.Login)
+		mux.HandleFunc("GET /api/auth/keycloak/login", userHandler.KeycloakLogin)
+		mux.HandleFunc("GET /api/auth/keycloak/callback", userHandler.KeycloakCallback)
 
 		// Protected
 		mux.Handle("GET /api/users", authMiddleware(http.HandlerFunc(userHandler.ListUsers)))
@@ -116,6 +126,16 @@ func startHTTPServer(store storage.Storage) *http.Server {
 		mux.Handle("GET /api/sites/{id}/sessions/suspicious", authMiddleware(http.HandlerFunc(sessionHandler.GetSuspiciousSessions)))
 		mux.Handle("GET /api/sites/{id}/stats", authMiddleware(http.HandlerFunc(sessionHandler.GetSessionStats)))
 	}
+
+	fs := storage.NewLocalS3("./data/uploads")
+	fileHandler := handlers.NewFileHandler(store, fs)
+
+	mux.Handle("POST /api/files/upload", authMiddleware(http.HandlerFunc(fileHandler.Upload)))
+	mux.Handle("GET /api/files/{id}", authMiddleware(http.HandlerFunc(fileHandler.Download)))
+	mux.Handle("DELETE /api/files/{id}", authMiddleware(http.HandlerFunc(fileHandler.Delete)))
+	mux.Handle("GET /api/files", authMiddleware(http.HandlerFunc(fileHandler.List)))
+	mux.Handle("POST /api/files/share", authMiddleware(http.HandlerFunc(fileHandler.CreateShare)))
+	mux.HandleFunc("GET /api/files/share/{token}", fileHandler.GetByShareToken)
 
 	handler := loggingMiddleware(corsMiddleware(mux))
 

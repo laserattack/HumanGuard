@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"golang.org/x/crypto/bcrypt"
 	"humanguard/auth"
 	"humanguard/storage"
@@ -114,10 +115,11 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.storage.CreateUser(r.Context(), user); err != nil {
+		log.Printf("CreateUser error: %v", err)  
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "failed to create user"})
-		return
+    return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -126,7 +128,76 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		"user":        user,
 		"totp_secret": totpSecret,
 		"qr_code_url": h.totp.GenerateQRURL(req.Email, totpSecret),
-		"message":     "Registration successful. Scan QR code with Google Authenticator to login.",
+	})
+}
+
+// POST /api/login
+func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		TOTPCode string `json:"totp_code,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	if req.Email == "" || req.Password == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "email and password required"})
+		return
+	}
+
+	user, err := h.storage.GetUserByEmail(r.Context(), req.Email)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
+		return
+	}
+
+	if user.TOTPSecret != nil && *user.TOTPSecret != "" {
+		if req.TOTPCode == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{"error": "totp_code required"})
+			return
+		}
+		if !h.totp.ValidateCode(*user.TOTPSecret, req.TOTPCode) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid totp code"})
+			return
+		}
+	}
+
+	token, err := h.jwt.GenerateToken(user.ID, user.Role)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to generate token"})
+		return
+	}
+
+	h.storage.UpdateLastLogin(r.Context(), user.ID)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"token": token,
+		"user":  user,
 	})
 }
 
@@ -256,75 +327,6 @@ func (h *UserHandler) CheckEmailExists(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"exists": exists})
-}
-
-// POST /api/login
-func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		TOTPCode string `json:"totp_code"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
-		return
-	}
-
-	if req.Email == "" || req.Password == "" || req.TOTPCode == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "email, password and totp_code are required"})
-		return
-	}
-
-	user, err := h.storage.GetUserByEmail(r.Context(), req.Email)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
-		return
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
-		return
-	}
-
-	if user.TOTPSecret == nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "2FA not configured"})
-		return
-	}
-
-	if !h.totp.ValidateCode(*user.TOTPSecret, req.TOTPCode) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid totp code"})
-		return
-	}
-
-	token, err := h.jwt.GenerateToken(user.ID, user.Role)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "failed to generate token"})
-		return
-	}
-
-	h.storage.UpdateLastLogin(r.Context(), user.ID)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"token": token,
-		"user":  user,
-	})
 }
 
 // POST /api/users/{id}/avatar
