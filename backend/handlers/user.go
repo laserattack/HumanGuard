@@ -5,15 +5,18 @@ import (
 	"errors"
 	"golang.org/x/crypto/bcrypt"
 	"humanguard/storage"
+	"humanguard/auth"
 	"net/http"
 )
 
 type UserHandler struct {
 	storage storage.Storage
+	jwt     *auth.JWTService
+	totp    *auth.TOTPService
 }
 
 func NewUserHandler(store storage.Storage) *UserHandler {
-	return &UserHandler{storage: store}
+	return &UserHandler{storage: store, jwt: jwt, totp: totp}
 }
 
 // GET /api/users/{id}
@@ -33,38 +36,73 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 // POST /api/users
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Email        string `json:"email"`
-		Name         string `json:"name"`
-		PasswordHash string `json:"password"`
-		Role         string `json:"role"`
+		Email    string `json:"email"`
+		Name     string `json:"name"`
+		Password string `json:"password"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.PasswordHash), bcrypt.DefaultCost)
-	if err != nil {
-		http.Error(w, "Failed to hash password", http.StatusInternalServerError)
+	if req.Email == "" || req.Password == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "email and password required"})
 		return
 	}
+
+	if len(req.Password) < 8 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "password too short (min 8)"})
+		return
+	}
+
+	exists, _ := h.storage.CheckEmailExists(r.Context(), req.Email)
+	if exists {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(map[string]string{"error": "email already exists"})
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to hash password"})
+		return
+	}
+
+	totpSecret := h.totp.GenerateSecret()
 
 	user := &storage.User{
 		Email:        req.Email,
 		Name:         req.Name,
 		PasswordHash: string(hashedPassword),
-		Role:         req.Role,
+		Role:         "user",
+		TOTPSecret:   &totpSecret,
 	}
 
 	if err := h.storage.CreateUser(r.Context(), user); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to create user"})
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"user":        user,
+		"totp_secret": totpSecret,
+		"qr_code_url": h.totp.GenerateQRURL(req.Email, totpSecret),
+		"message":     "Registration successful. Scan QR code with Google Authenticator to login.",
+	})
 }
 
 // PUT /api/users/{id}
@@ -200,33 +238,68 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
+		TOTPCode string `json:"totp_code"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
 		return
 	}
 
-	if req.Email == "" || req.Password == "" {
-		http.Error(w, "Email and password are required", http.StatusBadRequest)
+	if req.Email == "" || req.Password == "" || req.TOTPCode == "" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "email, password and totp_code are required"})
 		return
 	}
 
 	user, err := h.storage.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
+		return
+	}
+
+	if user.TOTPSecret == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "2FA not configured"})
+		return
+	}
+
+	if !h.totp.ValidateCode(*user.TOTPSecret, req.TOTPCode) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid totp code"})
+		return
+	}
+
+	token, err := h.jwt.GenerateToken(user.ID, user.Role)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "failed to generate token"})
 		return
 	}
 
 	h.storage.UpdateLastLogin(r.Context(), user.ID)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"token": token,
+		"user":  user,
+	})
 }
 
 // POST /api/users/{id}/avatar

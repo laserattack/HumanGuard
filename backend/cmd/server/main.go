@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"humanguard/auth"
 	"humanguard/handlers"
 	"humanguard/storage"
 	"log"
@@ -14,8 +16,10 @@ import (
 func main() {
 	store := connectToDatabase()
 	defer store.Close()
-	startHTTPServer(store)
-	waitForShutdown()
+
+	server := startHTTPServer(store)
+	waitForShutdown(server)
+
 	log.Println("Shutting down...")
 }
 
@@ -41,7 +45,7 @@ func connectToDatabase() storage.Storage {
 	return store
 }
 
-func startHTTPServer(store storage.Storage) {
+func startHTTPServer(store storage.Storage) *http.Server {
 	mux := http.NewServeMux()
 
 	// Health check endpoint
@@ -50,85 +54,123 @@ func startHTTPServer(store storage.Storage) {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// TODO(20260422T222701): add logging middleware
-	// TODO(20260422T222807): add auth middleware
+	// Services
+	jwtService := auth.NewJWTService(getEnv("JWT_SECRET", "super-secret-key"))
+	totpService := auth.NewTOTPService()
+
+	// Middleware
+	authMiddleware := auth.AuthMiddleware(jwtService)
 
 	// User endpoints
 	{
-		userHandler := handlers.NewUserHandler(store)
+		userHandler := handlers.NewUserHandler(store, jwtService, totpService)
 
-		mux.HandleFunc("GET /api/users/{id}", userHandler.GetUser)
-		mux.HandleFunc("GET /api/users/email/{email}", userHandler.GetUserByEmail)
-		mux.HandleFunc("GET /api/users/exists", userHandler.CheckEmailExists)
-		mux.HandleFunc("GET /api/users/oauth/{provider}/{oauthId}", userHandler.GetUserByOAuth)
+		// Public
 		mux.HandleFunc("POST /api/users", userHandler.CreateUser)
-		mux.HandleFunc("PUT /api/users/{id}", userHandler.UpdateUser)
-		mux.HandleFunc("DELETE /api/users/{id}", userHandler.DeleteUser)
-		mux.HandleFunc("POST /api/users/{id}/password", userHandler.ChangePassword)
-		mux.HandleFunc("POST /api/users/{id}/avatar", userHandler.UpdateAvatar)
 		mux.HandleFunc("POST /api/login", userHandler.Login)
+
+		// Protected
+		mux.Handle("GET /api/users/{id}", authMiddleware(http.HandlerFunc(userHandler.GetUser)))
+		mux.Handle("GET /api/users/email/{email}", authMiddleware(http.HandlerFunc(userHandler.GetUserByEmail)))
+		mux.Handle("GET /api/users/exists", authMiddleware(http.HandlerFunc(userHandler.CheckEmailExists)))
+		mux.Handle("GET /api/users/oauth/{provider}/{oauthId}", authMiddleware(http.HandlerFunc(userHandler.GetUserByOAuth)))
+		mux.Handle("PUT /api/users/{id}", authMiddleware(http.HandlerFunc(userHandler.UpdateUser)))
+		mux.Handle("DELETE /api/users/{id}", authMiddleware(http.HandlerFunc(userHandler.DeleteUser)))
+		mux.Handle("POST /api/users/{id}/password", authMiddleware(http.HandlerFunc(userHandler.ChangePassword)))
+		mux.Handle("POST /api/users/{id}/avatar", authMiddleware(http.HandlerFunc(userHandler.UpdateAvatar)))
 	}
 
 	// Site endpoints
 	{
 		siteHandler := handlers.NewSiteHandler(store)
 
-		mux.HandleFunc("POST /api/sites", siteHandler.CreateSite)
-		mux.HandleFunc("GET /api/sites", siteHandler.ListSites)
-		mux.HandleFunc("GET /api/sites/{id}", siteHandler.GetSite)
-		mux.HandleFunc("PUT /api/sites/{id}", siteHandler.UpdateSite)
-		mux.HandleFunc("DELETE /api/sites/{id}", siteHandler.DeleteSite)
-		mux.HandleFunc("POST /api/sites/{id}/activate", siteHandler.ActivateSite)
-		mux.HandleFunc("POST /api/sites/{id}/suspend", siteHandler.SuspendSite)
-		mux.HandleFunc("GET /api/sites/{id}/settings", siteHandler.GetSiteSettings)
-		mux.HandleFunc("PUT /api/sites/{id}/settings", siteHandler.UpdateSiteSettings)
+		mux.Handle("POST /api/sites", authMiddleware(http.HandlerFunc(siteHandler.CreateSite)))
+		mux.Handle("GET /api/sites", authMiddleware(http.HandlerFunc(siteHandler.ListSites)))
+		mux.Handle("GET /api/sites/{id}", authMiddleware(http.HandlerFunc(siteHandler.GetSite)))
+		mux.Handle("PUT /api/sites/{id}", authMiddleware(http.HandlerFunc(siteHandler.UpdateSite)))
+		mux.Handle("DELETE /api/sites/{id}", authMiddleware(http.HandlerFunc(siteHandler.DeleteSite)))
+		mux.Handle("POST /api/sites/{id}/activate", authMiddleware(http.HandlerFunc(siteHandler.ActivateSite)))
+		mux.Handle("POST /api/sites/{id}/suspend", authMiddleware(http.HandlerFunc(siteHandler.SuspendSite)))
+		mux.Handle("GET /api/sites/{id}/settings", authMiddleware(http.HandlerFunc(siteHandler.GetSiteSettings)))
+		mux.Handle("PUT /api/sites/{id}/settings", authMiddleware(http.HandlerFunc(siteHandler.UpdateSiteSettings)))
 	}
 
 	// Session endpoints
 	{
 		sessionHandler := handlers.NewSessionHandler(store)
 
-		mux.HandleFunc("POST /api/sessions", sessionHandler.CreateSession)
-		mux.HandleFunc("GET /api/sessions/{id}", sessionHandler.GetSession)
-		mux.HandleFunc("GET /api/sessions/cookie/{cookie}", sessionHandler.GetSessionByCookie)
-		mux.HandleFunc("PUT /api/sessions/{id}", sessionHandler.UpdateSession)
-		mux.HandleFunc("DELETE /api/sessions/{id}", sessionHandler.DeactivateSession)
-		mux.HandleFunc("POST /api/sessions/{id}/block", sessionHandler.BlockSession)
-		mux.HandleFunc("POST /api/sessions/{id}/unblock", sessionHandler.UnblockSession)
-		mux.HandleFunc("PATCH /api/sessions/{id}/risk", sessionHandler.UpdateRiskScore)
-		mux.HandleFunc("POST /api/sessions/{id}/activity", sessionHandler.UpdateSessionActivity)
-		mux.HandleFunc("POST /api/sessions/{id}/captcha", sessionHandler.MarkCaptchaShown)
-		mux.HandleFunc("POST /api/sessions/cleanup", sessionHandler.CleanupExpiredSessions)
-		mux.HandleFunc("GET /api/sites/{id}/sessions", sessionHandler.GetSessionsBySite)
-		mux.HandleFunc("GET /api/sites/{id}/sessions/suspicious", sessionHandler.GetSuspiciousSessions)
-		mux.HandleFunc("GET /api/sites/{id}/stats", sessionHandler.GetSessionStats)
+		mux.Handle("POST /api/sessions", authMiddleware(http.HandlerFunc(sessionHandler.CreateSession)))
+		mux.Handle("GET /api/sessions/{id}", authMiddleware(http.HandlerFunc(sessionHandler.GetSession)))
+		mux.Handle("GET /api/sessions/cookie/{cookie}", authMiddleware(http.HandlerFunc(sessionHandler.GetSessionByCookie)))
+		mux.Handle("PUT /api/sessions/{id}", authMiddleware(http.HandlerFunc(sessionHandler.UpdateSession)))
+		mux.Handle("DELETE /api/sessions/{id}", authMiddleware(http.HandlerFunc(sessionHandler.DeactivateSession)))
+		mux.Handle("POST /api/sessions/{id}/block", authMiddleware(http.HandlerFunc(sessionHandler.BlockSession)))
+		mux.Handle("POST /api/sessions/{id}/unblock", authMiddleware(http.HandlerFunc(sessionHandler.UnblockSession)))
+		mux.Handle("PATCH /api/sessions/{id}/risk", authMiddleware(http.HandlerFunc(sessionHandler.UpdateRiskScore)))
+		mux.Handle("POST /api/sessions/{id}/activity", authMiddleware(http.HandlerFunc(sessionHandler.UpdateSessionActivity)))
+		mux.Handle("POST /api/sessions/{id}/captcha", authMiddleware(http.HandlerFunc(sessionHandler.MarkCaptchaShown)))
+		mux.Handle("POST /api/sessions/cleanup", authMiddleware(http.HandlerFunc(sessionHandler.CleanupExpiredSessions)))
+		mux.Handle("GET /api/sites/{id}/sessions", authMiddleware(http.HandlerFunc(sessionHandler.GetSessionsBySite)))
+		mux.Handle("GET /api/sites/{id}/sessions/suspicious", authMiddleware(http.HandlerFunc(sessionHandler.GetSuspiciousSessions)))
+		mux.Handle("GET /api/sites/{id}/stats", authMiddleware(http.HandlerFunc(sessionHandler.GetSessionStats)))
 	}
 
-	// create server
+	handler := loggingMiddleware(corsMiddleware(mux))
+
 	server := &http.Server{
-		Addr:         ":8080",
-		Handler:      mux,
+		Addr:         ":" + getEnv("PORT", "8080"),
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// start server
 	go func() {
-		log.Println("Server starting on http://localhost:8080")
+		log.Println("Server starting on http://localhost:" + getEnv("PORT", "8080"))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
 	}()
+
+	return server
 }
 
-// for gracefully shutdown
-func waitForShutdown() {
+func waitForShutdown(server *http.Server) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	log.Println("Received shutdown signal")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	log.Println("Server stopped")
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start))
+	})
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func getEnv(key, defaultValue string) string {
