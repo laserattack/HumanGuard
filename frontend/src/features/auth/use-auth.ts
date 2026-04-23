@@ -1,11 +1,25 @@
 import { useMutation } from '@tanstack/react-query';
-import { login } from '@/api/auth';
+import { login, register } from '@/api/auth';
 import { useAuthStore } from '@/app/store/auth-store';
 
 export const useAuth = () => {
   const setSession = useAuthStore((s) => s.setSession);
-  return useMutation({
+
+  const loginMutation = useMutation({
     mutationFn: login,
-    onSuccess: ({ token, user }) => setSession(token, user)
+    onSuccess: (response) => {
+      if ('token' in response) {
+        setSession(response.token, response.user);
+      }
+    }
   });
+
+  const registerMutation = useMutation({
+    mutationFn: register
+  });
+
+  return {
+    loginMutation,
+    registerMutation
+  };
 };
