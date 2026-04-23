@@ -238,3 +238,42 @@ func (s *storage) SuspendSite(ctx context.Context, siteID string) error {
 	return s.UpdateSiteStatus(ctx, siteID, "suspended")
 }
 
+func (s *storage) GetSitesByUserID(ctx context.Context, userID string) ([]*Site, error) {
+	query := `
+		SELECT id, user_id, name, domain, origin_server, status, settings, created_at, updated_at
+		FROM sites 
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sites by user: %w", err)
+	}ы
+	defer rows.Close()
+
+	var sites []*Site
+	for rows.Next() {
+		var site Site
+		var settingsJSON []byte
+
+		err := rows.Scan(
+			&site.ID, &site.UserID, &site.Name, &site.Domain, &site.OriginServer,
+			&site.Status, &settingsJSON, &site.CreatedAt, &site.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan site: %w", err)
+		}
+
+		if len(settingsJSON) > 0 {
+			var settings ModuleSettings
+			if err := json.Unmarshal(settingsJSON, &settings); err == nil {
+				site.Settings = &settings
+			}
+		}
+
+		sites = append(sites, &site)
+	}
+
+	return sites, nil
+}
