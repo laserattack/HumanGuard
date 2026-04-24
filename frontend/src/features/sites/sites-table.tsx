@@ -61,40 +61,40 @@ export const SitesTable = () => {
 
   return (
     <section className="space-y-4">
-      <form className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" onSubmit={onCreate}>
-        <h2 className="text-lg font-semibold">Добавить сайт</h2>
-        <input className="w-full rounded-lg border px-3 py-2" placeholder="Название" value={createData.name} onChange={(e) => setCreateData((p) => ({ ...p, name: e.target.value }))} required />
-        <input className="w-full rounded-lg border px-3 py-2" placeholder="Домен" value={createData.domain} onChange={(e) => setCreateData((p) => ({ ...p, domain: e.target.value }))} required />
-        <input className="w-full rounded-lg border px-3 py-2" placeholder="Origin server (например http://localhost:3000)" value={createData.origin_server} onChange={(e) => setCreateData((p) => ({ ...p, origin_server: e.target.value }))} required />
-        <button className="rounded-lg bg-slate-900 px-4 py-2 text-white">Создать сайт</button>
+      <form className="theme-card space-y-3 rounded-2xl border border-[rgb(var(--border))] p-5 shadow-sm" onSubmit={onCreate}>
+        <h2 className="text-lg font-semibold text-[rgb(var(--text-primary))]">Добавить сайт</h2>
+        <input className="form-input w-full rounded-lg px-3 py-2" placeholder="Название" value={createData.name} onChange={(e) => setCreateData((p) => ({ ...p, name: e.target.value }))} required />
+        <input className="form-input w-full rounded-lg px-3 py-2" placeholder="Домен" value={createData.domain} onChange={(e) => setCreateData((p) => ({ ...p, domain: e.target.value }))} required />
+        <input className="form-input w-full rounded-lg px-3 py-2" placeholder="Origin server (например http://localhost:3000)" value={createData.origin_server} onChange={(e) => setCreateData((p) => ({ ...p, origin_server: e.target.value }))} required />
+        <button className="interactive-chip theme-button px-4 py-2">Создать сайт</button>
       </form>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="theme-card rounded-2xl border border-[rgb(var(--border))] p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Сайты</h2>
-          <button className="rounded border px-3 py-1 text-sm" onClick={() => void loadSites()}>
+          <h2 className="text-lg font-semibold text-[rgb(var(--text-primary))]">Сайты</h2>
+          <button className="interactive-chip rounded border border-[rgb(var(--border))] px-3 py-1 text-sm text-[rgb(var(--text-primary))]" onClick={() => void loadSites()}>
             Обновить
           </button>
         </div>
 
-        {loading && <p className="text-sm text-slate-600">Загрузка...</p>}
-        {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+        {loading && <p className="text-sm text-[rgb(var(--text-secondary))]">Загрузка...</p>}
+        {error && <p className="mb-2 field-error">{error}</p>}
 
-        {!loading && sites.length === 0 && <p className="text-sm text-slate-600">Сайтов пока нет.</p>}
+        {!loading && sites.length === 0 && <p className="text-sm text-[rgb(var(--text-secondary))]">Сайтов пока нет.</p>}
 
         <div className="space-y-3">
           {sites.map((site) => (
-            <article key={site.id} className="rounded border border-slate-200 p-3">
+            <article key={site.id} className="rounded border border-[rgb(var(--border))] p-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="font-medium">{site.name}</p>
-                  <p className="text-sm text-slate-600">{site.domain}</p>
-                  <p className="text-xs text-slate-500">status: {site.status}</p>
+                  <p className="font-medium text-[rgb(var(--text-primary))]">{site.name}</p>
+                  <p className="text-sm text-[rgb(var(--text-secondary))]">{site.domain}</p>
+                  <p className="text-xs text-[rgb(var(--text-secondary))]">status: {site.status}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button className="rounded border px-3 py-1 text-sm" onClick={() => void onAction(() => activateSite(site.id))}>Activate</button>
-                  <button className="rounded border px-3 py-1 text-sm" onClick={() => void onAction(() => suspendSite(site.id))}>Suspend</button>
-                  <button className="rounded bg-red-700 px-3 py-1 text-sm text-white" onClick={() => void onAction(() => deleteSite(site.id))}>Delete</button>
+                  <button className="interactive-chip rounded border border-[rgb(var(--border))] px-3 py-1 text-sm text-[rgb(var(--text-primary))]" onClick={() => void onAction(() => activateSite(site.id))}>Activate</button>
+                  <button className="interactive-chip rounded border border-[rgb(var(--border))] px-3 py-1 text-sm text-[rgb(var(--text-primary))]" onClick={() => void onAction(() => suspendSite(site.id))}>Suspend</button>
+                  <button className="interactive-chip rounded bg-red-700 px-3 py-1 text-sm text-white" onClick={() => void onAction(() => deleteSite(site.id))}>Delete</button>
                 </div>
               </div>
             </article>

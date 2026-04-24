@@ -59,27 +59,27 @@ export const UsersTable = () => {
   }, []);
 
   return (
-    <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="theme-card space-y-4 rounded-2xl border border-[rgb(var(--border))] p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-slate-900">Пользователи системы</h2>
+        <h2 className="text-xl font-semibold text-[rgb(var(--text-primary))]">Пользователи системы</h2>
         <button
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="interactive-chip rounded-lg border border-[rgb(var(--border))] px-3 py-1.5 text-sm font-medium text-[rgb(var(--text-primary))]"
           onClick={() => void loadUsers()}
         >
           Обновить
         </button>
       </div>
 
-      {loading && <p className="text-sm text-slate-600">Загрузка пользователей...</p>}
+      {loading && <p className="text-sm text-[rgb(var(--text-secondary))]">Загрузка пользователей...</p>}
       {error && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</p>}
 
-      {!loading && users.length === 0 && !error && <p className="text-sm text-slate-600">Пользователей пока нет.</p>}
+      {!loading && users.length === 0 && !error && <p className="text-sm text-[rgb(var(--text-secondary))]">Пользователей пока нет.</p>}
 
       {users.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <div className="overflow-x-auto rounded-xl border border-[rgb(var(--border))]">
           <table className="min-w-full border-collapse text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-left text-slate-700">
+            <thead className="bg-[rgb(var(--bg-main))]">
+              <tr className="text-left text-[rgb(var(--text-secondary))]">
                 <th className="px-3 py-2">ID</th>
                 <th className="px-3 py-2">Email</th>
                 <th className="px-3 py-2">Имя</th>
@@ -90,12 +90,12 @@ export const UsersTable = () => {
             </thead>
             <tbody>
               {users.map((user) => (
-                <tr key={user.id} className="border-t border-slate-100 align-top hover:bg-slate-50/60">
+                <tr key={user.id} className="border-t border-[rgb(var(--border))] align-top hover:bg-[rgb(var(--bg-main))]">
                   <td className="max-w-56 truncate px-3 py-2" title={user.id}>{user.id}</td>
                   <td className="px-3 py-2">{user.email}</td>
                   <td className="px-3 py-2">{user.name || '—'}</td>
                   <td className="px-3 py-2">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{user.role}</span>
+                    <span className="rounded-full bg-[rgb(var(--bg-main))] px-2 py-0.5 text-xs font-medium text-[rgb(var(--text-secondary))]">{user.role}</span>
                   </td>
                   <td className="px-3 py-2">{user.created_at ? new Date(user.created_at).toLocaleString() : '—'}</td>
                   <td className="px-3 py-2">{user.last_login ? new Date(user.last_login).toLocaleString() : '—'}</td>
