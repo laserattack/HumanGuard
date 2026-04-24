@@ -12,9 +12,36 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / 1024 ** i).toFixed(i > 1 ? 2 : 0)} ${units[i]}`;
 };
 
-const parseError = (error: unknown) => {
+type ErrorDetails = {
+  operation: 'upload' | 'list';
+  message: string;
+  status?: number;
+  code?: string;
+  method?: string;
+  url?: string;
+  backendError?: string;
+  fileName?: string;
+  fileSize?: number;
+};
+
+const buildErrorDetails = (
+  operation: 'upload' | 'list',
+  error: unknown,
+  file?: File | null
+): ErrorDetails => {
   const err = error as AxiosError<{ error?: string }>;
-  return err.response?.data?.error ?? err.message ?? 'Unknown error';
+  const response = err.response;
+  return {
+    operation,
+    message: response?.data?.error ?? err.message ?? 'Unknown error',
+    status: response?.status,
+    code: err.code,
+    method: err.config?.method?.toUpperCase(),
+    url: err.config?.url,
+    backendError: response?.data?.error,
+    fileName: file?.name,
+    fileSize: file?.size
+  };
 };
 
 const getDownloadUrl = (file: ManagedFile) => `${API_URL}/api/files/${file.id}`;
@@ -26,15 +53,20 @@ export const FilesManager = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
 
   const loadFiles = async () => {
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
     try {
       const data = await getFiles();
       setFiles(data);
     } catch (e) {
-      setError(parseError(e));
+      const details = buildErrorDetails('list', e);
+      setError(details.message);
+      setErrorDetails(details);
+      console.error('[FilesManager] list failed', details, e);
     } finally {
       setLoading(false);
     }
@@ -48,6 +80,7 @@ export const FilesManager = () => {
     setSelectedFile(event.target.files?.[0] ?? null);
     setUploadProgress(0);
     setError(null);
+    setErrorDetails(null);
   };
 
   const onUpload = async () => {
@@ -57,6 +90,7 @@ export const FilesManager = () => {
     }
 
     setError(null);
+    setErrorDetails(null);
     setUploading(true);
     setUploadProgress(0);
 
@@ -65,7 +99,10 @@ export const FilesManager = () => {
       setFiles((prev) => [uploaded, ...prev]);
       setSelectedFile(null);
     } catch (e) {
-      setError(parseError(e));
+      const details = buildErrorDetails('upload', e, selectedFile);
+      setError(details.message);
+      setErrorDetails(details);
+      console.error('[FilesManager] upload failed', details, e);
     } finally {
       setUploading(false);
     }
@@ -102,6 +139,23 @@ export const FilesManager = () => {
         )}
 
         {error && <p className="mt-3 field-error">{error}</p>}
+        {errorDetails && (
+          <details className="mt-3 rounded-lg border border-[rgb(var(--border))] p-3 text-xs text-[rgb(var(--text-secondary))]">
+            <summary className="cursor-pointer select-none text-sm font-medium text-[rgb(var(--text-primary))]">
+              Подробности ошибки
+            </summary>
+            <ul className="mt-2 space-y-1">
+              <li>Операция: {errorDetails.operation}</li>
+              <li>Status: {errorDetails.status ?? 'n/a'}</li>
+              <li>Code: {errorDetails.code ?? 'n/a'}</li>
+              <li>Method: {errorDetails.method ?? 'n/a'}</li>
+              <li>URL: {errorDetails.url ?? 'n/a'}</li>
+              <li>Backend message: {errorDetails.backendError ?? 'n/a'}</li>
+              <li>File: {errorDetails.fileName ?? 'n/a'}</li>
+              <li>File size: {typeof errorDetails.fileSize === 'number' ? formatBytes(errorDetails.fileSize) : 'n/a'}</li>
+            </ul>
+          </details>
+        )}
       </header>
 
       <section className="theme-card rounded-2xl border border-[rgb(var(--border))] p-5 shadow-sm">
