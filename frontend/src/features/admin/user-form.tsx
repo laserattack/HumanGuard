@@ -1,1 +1,5 @@
-export const UserForm = () => <section className="rounded border border-slate-200 bg-white p-4">UserForm</section>;
+export const UserForm = () => (
+  <section className="theme-card rounded-2xl border border-[rgb(var(--border))] p-5 text-[rgb(var(--text-primary))] shadow-sm">
+    UserForm
+  </section>
+);

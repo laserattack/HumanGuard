@@ -33,19 +33,19 @@ export const ProfileCard = () => {
   }, []);
 
   return (
-    <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="theme-card space-y-3 rounded-2xl border border-[rgb(var(--border))] p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Профиль</h2>
-        <button className="rounded border px-3 py-1 text-sm" onClick={() => void loadProfile()}>
+        <h2 className="text-lg font-semibold text-[rgb(var(--text-primary))]">Профиль</h2>
+        <button className="interactive-chip rounded-lg border border-[rgb(var(--border))] px-3 py-1 text-sm text-[rgb(var(--text-primary))]" onClick={() => void loadProfile()}>
           Обновить
         </button>
       </div>
 
-      {loading && <p className="text-sm text-slate-600">Загрузка...</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {loading && <p className="text-sm text-[rgb(var(--text-secondary))]">Загрузка...</p>}
+      {error && <p className="field-error">{error}</p>}
 
       {!loading && (
-        <div className="space-y-1 text-sm">
+        <div className="space-y-1 text-sm text-[rgb(var(--text-primary))]">
           <p><span className="font-medium">ID:</span> {profile?.id ?? authUser?.id ?? '—'}</p>
           <p><span className="font-medium">Email:</span> {profile?.email ?? authUser?.email ?? '—'}</p>
           <p><span className="font-medium">Имя:</span> {profile?.name ?? '—'}</p>

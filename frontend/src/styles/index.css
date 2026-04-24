@@ -121,13 +121,15 @@ body {
   backdrop-filter: blur(10px);
 }
 
-.auth-input {
+.auth-input,
+.form-input {
   border: 1px solid rgb(var(--border));
   background: rgb(var(--bg-main));
   color: rgb(var(--text-primary));
 }
 
-.auth-input:focus {
+.auth-input:focus,
+.form-input:focus {
   outline: none;
   border-color: rgb(var(--accent-soft));
   box-shadow: 0 0 0 3px rgb(var(--accent-soft) / 0.2);

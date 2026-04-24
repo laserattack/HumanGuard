@@ -34,12 +34,12 @@ export const UpdateAvatarForm = () => {
   };
 
   return (
-    <form className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" onSubmit={onSubmit}>
-      <h2 className="text-lg font-semibold">Обновить аватар</h2>
-      <input className="w-full rounded-lg border px-3 py-2" placeholder="https://..." value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} required />
+    <form className="theme-card space-y-3 rounded-2xl border border-[rgb(var(--border))] p-5 shadow-sm" onSubmit={onSubmit}>
+      <h2 className="text-lg font-semibold text-[rgb(var(--text-primary))]">Обновить аватар</h2>
+      <input className="form-input w-full rounded-lg px-3 py-2" placeholder="https://..." value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} required />
       {status && <p className="text-sm text-emerald-700">{status}</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button className="rounded-lg bg-slate-900 px-4 py-2 text-white">Сохранить</button>
+      {error && <p className="field-error">{error}</p>}
+      <button className="interactive-chip theme-button px-4 py-2">Сохранить</button>
     </form>
   );
 };
