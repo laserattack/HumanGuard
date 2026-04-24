@@ -27,24 +27,30 @@ export const UpdateAvatarForm = ({ onUpdated }: UpdateAvatarFormProps) => {
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
+  const clearSelectedAvatar = () => {
+    setAvatarUrl('');
+    setFileName(null);
+  };
+
   const onFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     setStatus(null);
     setError(null);
 
     if (!file) {
-      setAvatarUrl('');
-      setFileName(null);
+      clearSelectedAvatar();
       return;
     }
 
     if (!file.type.startsWith('image/')) {
+      clearSelectedAvatar();
       setError('Можно загрузить только изображение.');
       event.target.value = '';
       return;
     }
 
     if (file.size > 15 * 1024 * 1024) {
+      clearSelectedAvatar();
       setError('Максимальный размер аватарки — 15MB.');
       event.target.value = '';
       return;
@@ -56,6 +62,7 @@ export const UpdateAvatarForm = ({ onUpdated }: UpdateAvatarFormProps) => {
       setAvatarUrl(dataUrl);
       setFileName(file.name);
     } catch (e) {
+      clearSelectedAvatar();
       setError(parseError(e));
     } finally {
       setProcessing(false);
