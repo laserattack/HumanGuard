@@ -1,4 +1,4 @@
-export type ThemeMode = 'default' | 'cyan';
+export type ThemeMode = 'default' | 'cyan' | 'dark';
 
 const THEME_STORAGE_KEY = 'hg-theme';
 
@@ -8,7 +8,11 @@ export const getStoredTheme = (): ThemeMode => {
   }
 
   const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-  return saved === 'cyan' ? 'cyan' : 'default';
+  if (saved === 'cyan' || saved === 'dark') {
+    return saved;
+  }
+
+  return 'default';
 };
 
 export const applyTheme = (theme: ThemeMode) => {

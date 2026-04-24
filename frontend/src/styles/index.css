@@ -24,6 +24,17 @@
   --accent-contrast: 255 255 255;
 }
 
+:root[data-theme='dark'] {
+  --bg-main: 2 6 23;
+  --bg-surface: 15 23 42;
+  --border: 51 65 85;
+  --text-primary: 226 232 240;
+  --text-secondary: 148 163 184;
+  --accent: 56 189 248;
+  --accent-soft: 34 211 238;
+  --accent-contrast: 2 6 23;
+}
+
 body {
   @apply m-0 font-sans antialiased;
   background: rgb(var(--bg-main));
@@ -56,6 +67,12 @@ body {
   border: 1px solid rgb(var(--border));
   background: rgb(var(--bg-surface));
   box-shadow: 0 8px 22px -18px rgb(var(--accent) / 0.35);
+}
+
+.theme-button--muted {
+  background: rgb(var(--bg-surface));
+  color: rgb(var(--text-primary));
+  border-color: rgb(var(--border));
 }
 
 .brand-icon {
