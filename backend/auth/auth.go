@@ -88,7 +88,6 @@ func (t *TOTPService) GenerateCode(secret string) string {
 
 func (t *TOTPService) ValidateCode(secret, code string) bool {
 	serverCode := t.GenerateCode(secret)
-	fmt.Printf("DEBUG: Server generated code: %s, Client provided: %s\n", serverCode, code)
 	return serverCode == code
 }
 
