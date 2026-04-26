@@ -288,10 +288,10 @@ func (rl *rateLimiter) allow(key string) bool {
 
 func getClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.SplitN(xff, ",", 2)[0]
+		return strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
 	}
 	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return xri
+		return strings.TrimSpace(xri)
 	}
 	addr := r.RemoteAddr
 	if i := strings.LastIndex(addr, ":"); i >= 0 {
