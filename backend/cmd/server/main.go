@@ -9,9 +9,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
+
+	"github.com/google/uuid"
 )
+
+type contextKey string
+
+const requestIDKey contextKey = "requestID"
 
 func main() {
 	store := connectToDatabase()
@@ -129,7 +137,7 @@ func startHTTPServer(store storage.Storage) *http.Server {
 	mux.Handle("POST /api/files/share", authMiddleware(http.HandlerFunc(fileHandler.CreateShare)))
 	mux.HandleFunc("GET /api/files/share/{token}", fileHandler.GetByShareToken)
 
-	handler := loggingMiddleware(corsMiddleware(mux))
+	handler := loggingMiddleware(corsMiddleware(rateLimitMiddleware(newRateLimiter(10, time.Minute))(securityHeadersMiddleware(mux))))
 
 	server := &http.Server{
 		Addr:         ":" + getEnv("PORT", "8080"),
@@ -169,20 +177,151 @@ func waitForShutdown(server *http.Server) {
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start))
+
+		reqID, err := uuid.NewV7()
+		var reqIDStr string
+		if err != nil {
+			reqIDStr = uuid.New().String()
+		} else {
+			reqIDStr = reqID.String()
+		}
+
+		ctx := context.WithValue(r.Context(), requestIDKey, reqIDStr)
+		w.Header().Set("X-Request-Id", reqIDStr)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+		log.Printf("[%s] %s %s %s", reqIDStr, r.Method, r.URL.Path, time.Since(start))
 	})
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
+	rawOrigins := getEnv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
+	allowedOrigins := make(map[string]bool)
+	for _, o := range strings.Split(rawOrigins, ",") {
+		if o = strings.TrimSpace(o); o != "" {
+			allowedOrigins[o] = true
+		}
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if r.Method == "OPTIONS" {
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			if allowedOrigins[origin] {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Vary", "Origin")
+			} else if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+		}
+		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// rateLimiter implements a sliding-window per-IP rate limiter.
+type rateLimiter struct {
+	mu       sync.Mutex
+	requests map[string][]time.Time
+	limit    int
+	window   time.Duration
+}
+
+func newRateLimiter(limit int, window time.Duration) *rateLimiter {
+	rl := &rateLimiter{
+		requests: make(map[string][]time.Time),
+		limit:    limit,
+		window:   window,
+	}
+	go func() {
+		ticker := time.NewTicker(window)
+		defer ticker.Stop()
+		for range ticker.C {
+			rl.cleanup()
+		}
+	}()
+	return rl
+}
+
+func (rl *rateLimiter) cleanup() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	now := time.Now()
+	for key, times := range rl.requests {
+		var valid []time.Time
+		for _, t := range times {
+			if now.Sub(t) < rl.window {
+				valid = append(valid, t)
+			}
+		}
+		if len(valid) == 0 {
+			delete(rl.requests, key)
+		} else {
+			rl.requests[key] = valid
+		}
+	}
+}
+
+func (rl *rateLimiter) allow(key string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	now := time.Now()
+	var recent []time.Time
+	for _, t := range rl.requests[key] {
+		if now.Sub(t) < rl.window {
+			recent = append(recent, t)
+		}
+	}
+	if len(recent) >= rl.limit {
+		rl.requests[key] = recent
+		return false
+	}
+	rl.requests[key] = append(recent, now)
+	return true
+}
+
+func getClientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		return strings.SplitN(xff, ",", 2)[0]
+	}
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return xri
+	}
+	addr := r.RemoteAddr
+	if i := strings.LastIndex(addr, ":"); i >= 0 {
+		return addr[:i]
+	}
+	return addr
+}
+
+func rateLimitMiddleware(rl *rateLimiter) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !rl.allow(getClientIP(r)) {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Retry-After", "60")
+				w.WriteHeader(http.StatusTooManyRequests)
+				w.Write([]byte(`{"error":"rate limit exceeded"}`))
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy",
+			"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		next.ServeHTTP(w, r)
 	})
 }
